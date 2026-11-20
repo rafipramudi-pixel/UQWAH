@@ -1,0 +1,1954 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MASJIDKU — Sistem Informasi Manajemen Masjid Baiturrahim</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Inter & Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- html2pdf.js for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        emerald: {
+                            50: '#ecfdf5', 100: '#d1fae5', 500: '#10b981', 600: '#059669', 700: '#047857', 800: '#065f46', 900: '#064e3b', 950: '#022c22',
+                        },
+                        gold: { 400: '#fbbf24', 500: '#f59e0b', 600: '#d97706', }
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        amiri: ['"Amiri"', 'serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .amiri-font { font-family: 'Amiri', serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #064e3b; }
+        ::-webkit-scrollbar-thumb { background: #10b981; border-radius: 3px; }
+    </style>
+</head>
+<body class="h-full bg-emerald-950 text-slate-100 flex flex-col overflow-hidden selection:bg-emerald-500 selection:text-white">
+
+    <div id="app" class="flex-1 flex flex-col h-full overflow-hidden relative">
+
+        <!-- ================= LOCK SCREEN ================= -->
+        <div id="lockScreen" class="hidden absolute inset-0 z-50 bg-emerald-950/95 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="max-w-sm w-full bg-slate-900 border border-emerald-700/50 rounded-3xl p-8 text-center shadow-2xl">
+                <div class="w-20 h-20 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 rounded-full flex items-center justify-center text-3xl mx-auto mb-4">
+                    <i class="fas fa-lock"></i>
+                </div>
+                <h2 class="text-xl font-bold text-white mb-2">Aplikasi Terkunci</h2>
+                <p class="text-xs text-slate-400 mb-6">Masukkan username dan kata sandi akun khusus untuk membuka sesi.</p>
+                
+                <form onsubmit="handleUnlock(event)" class="space-y-4">
+                    <input type="text" id="unlockUsername" required placeholder="Username..." 
+                        class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-center text-sm">
+                    <input type="password" id="unlockPassword" required placeholder="Kata sandi..." 
+                        class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-center text-sm">
+                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow transition">
+                        Buka Aplikasi
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= MODAL VERIFIKASI KEAMANAN ================= -->
+        <div id="authVerifyModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="max-w-md w-full bg-slate-900 border border-gold-500/40 rounded-3xl p-6 shadow-2xl">
+                <div class="flex items-center space-x-3 mb-4">
+                    <div class="w-12 h-12 rounded-2xl bg-gold-500/20 text-gold-500 flex items-center justify-center text-xl">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white" id="authVerifyTitle">Verifikasi Keamanan</h3>
+                        <p class="text-xs text-slate-400" id="authVerifyDesc">Masukkan kredensial akun terdaftar untuk melanjutkan.</p>
+                    </div>
+                </div>
+                <form onsubmit="confirmAuthAction(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gold-400 mb-1">Username</label>
+                        <input type="text" id="verifyUser" required placeholder="Username..."
+                            class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm font-semibold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gold-400 mb-1">Kata Sandi</label>
+                        <input type="password" id="verifyPass" required placeholder="Kata sandi..."
+                            class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div id="authVerifyError" class="hidden text-xs text-red-400 text-center font-medium"></div>
+                    <div class="flex space-x-3 pt-2">
+                        <button type="button" onclick="closeAuthVerifyModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-sm transition">Batal</button>
+                        <button type="submit" class="flex-1 py-2.5 bg-gold-500 hover:bg-gold-600 text-slate-950 font-bold rounded-xl text-sm transition shadow">Verifikasi & Lanjutkan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= MAIN APP INTERFACE ================= -->
+        <header class="bg-emerald-900/80 backdrop-blur-md border-b border-emerald-800 px-4 py-3 flex items-center justify-between z-20">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-emerald-400 text-white flex items-center justify-center font-bold text-lg shadow">
+                    🕌
+                </div>
+                <div>
+                    <h2 class="text-sm font-bold text-white tracking-wide">MASJIDKU</h2>
+                    <p class="text-[10px] text-emerald-300">Masjid Baiturrahim — Klampok, Kepyar, Purwantoro, Wonogiri</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <div id="syncStatusBadge" class="hidden sm:flex items-center space-x-1.5 bg-emerald-950/80 border border-emerald-700/50 px-2.5 py-1 rounded-full mr-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span class="text-[10px] text-emerald-300 font-medium" id="syncStatusText">Terhubung Cloud</span>
+                </div>
+                <div class="hidden sm:flex flex-col text-right mr-2">
+                    <span id="headerUserName" class="text-xs font-bold text-white">Akses Bebas</span>
+                    <span id="headerUserRole" class="text-[10px] text-emerald-300 bg-emerald-800/60 px-2 py-0.5 rounded-full inline-block">Publik / Umum</span>
+                </div>
+                <button onclick="refreshAppData(true)" title="Sinkronkan Data Sekarang" class="w-9 h-9 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 text-emerald-300 hover:text-white flex items-center justify-center transition">
+                    <i class="fas fa-sync-alt text-xs" id="syncIcon"></i>
+                </button>
+                <button onclick="checkLockAction()" title="Kunci Aplikasi" class="w-9 h-9 rounded-xl bg-emerald-800/80 hover:bg-emerald-700 text-emerald-300 hover:text-white flex items-center justify-center transition">
+                    <i class="fas fa-lock text-xs"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN BODY CONTAINER WITH SCROLL -->
+        <main class="flex-1 overflow-y-auto pb-28 lg:pb-6 p-4 md:p-6 bg-slate-950">
+            <div class="max-w-6xl mx-auto space-y-6">
+
+                <!-- ================= TAB 1: DASHBOARD ================= -->
+                <div id="tab-dashboard" class="space-y-6 tab-content">
+                    <div class="bg-gradient-to-r from-emerald-900/90 to-emerald-950 border border-emerald-700/50 rounded-3xl p-5 md:p-6 shadow-xl relative overflow-hidden">
+                        <div class="absolute right-0 bottom-0 opacity-10 text-9xl font-amiri text-emerald-400 pointer-events-none select-none">☪</div>
+                        <div class="flex items-start space-x-4 relative z-10">
+                            <div class="w-12 h-12 rounded-2xl bg-gold-500/20 text-gold-400 border border-gold-500/30 flex items-center justify-center shrink-0 text-xl">
+                                <i class="fas fa-book-open"></i>
+                            </div>
+                            <div class="space-y-2">
+                                <span class="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg bg-emerald-800 text-emerald-300 inline-block">Hadis Zakat Fitrah</span>
+                                <p class="amiri-font text-base md:text-lg text-emerald-100 leading-relaxed text-right dir-rtl">
+                                    فَرَضَ رَسُولُ اللَّهِ صَلَّى اللَّهُ عَلَيْهِ وَسَلَّمَ زَكَاةَ الْفِطْرِ صَاعًا مِنْ تَمْرٍ أَوْ صَاعًا مِنْ شَعِيرٍ عَلَى الْعَبْدِ وَالْحُرِّ وَالذَّكَرِ وَالْأُنْثَى وَالصَّغِيرِ وَالْكَبِيرِ مِنَ الْمُسْلِمِينَ وَأَمَرَ بِهَا أَنْ تُؤَدَّى قَبْلَ خُرُوجِ النَّاسِ إِلَى الصَّلَاةِ
+                                </p>
+                                <p class="text-xs text-slate-300 italic">
+                                    "Rasulullah ﷺ mewajibkan zakat fitrah satu sha' kurma atau satu sha' gandum atas setiap Muslim... Beliau memerintahkan agar ditunaikan sebelum orang-orang keluar menuju salat Idul Fitri." <span class="font-semibold text-gold-400">(HR. Bukhari no. 1503 & Muslim no. 984)</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-5">
+                        <div>
+                            <h2 class="text-lg font-bold text-white">Selamat datang di Sistem Masjid Baiturrahim! 👋</h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Semua data tersimpan aman di database Cloud Supabase dan langsung tercatat pada dashboard.</p>
+                        </div>
+                        <button onclick="switchTab('zakat')" class="px-5 py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/50 flex items-center justify-center space-x-2 text-sm transition">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>TAMBAH PEMBAYARAN ZAKAT</span>
+                        </button>
+                    </div>
+
+                    <!-- Summary Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                            <span class="text-xs font-semibold uppercase text-emerald-400 tracking-wider">Total Zakat Masuk</span>
+                            <div class="text-xl font-extrabold text-white mt-2" id="statTotalZakat">Rp 0</div>
+                            <div class="text-xs text-slate-400 mt-1"><span id="statTotalJiwa" class="text-emerald-300 font-semibold">0</span> Jiwa terdaftar</div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                            <span class="text-xs font-semibold uppercase text-lime-400 tracking-wider">Total Beras Masuk</span>
+                            <div class="text-xl font-extrabold text-white mt-2" id="statTotalBeras">0 Kg</div>
+                            <div class="text-xs text-slate-400 mt-1">Akumulasi zakat beras</div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                            <span class="text-xs font-semibold uppercase text-gold-400 tracking-wider">Total Infaq & Shodaqoh</span>
+                            <div class="text-xl font-extrabold text-white mt-2" id="statTotalInfaq">Rp 0</div>
+                            <div class="text-xs text-slate-400 mt-1">Kotak amal harian</div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                            <span class="text-xs font-semibold uppercase text-blue-400 tracking-wider">Saldo Kas Masjid</span>
+                            <div class="text-xl font-extrabold text-white mt-2" id="statSaldoKas">Rp 0</div>
+                            <div class="text-xs text-slate-400 mt-1">Kas masuk & keluar bersih</div>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                            <span class="text-xs font-semibold uppercase text-purple-400 tracking-wider">Transaksi Terakhir</span>
+                            <div class="text-sm font-bold text-white mt-2 truncate" id="statLastTxName">-</div>
+                            <div class="text-xs text-slate-400 mt-1" id="statLastTxTime">Belum ada transaksi</div>
+                        </div>
+                    </div>
+
+                    <!-- Ringkasan Data Masuk Terbaru di Dashboard -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Zakat Terbaru -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+                                    <i class="fas fa-receipt text-emerald-400"></i>
+                                    <span>Pembayaran Zakat Fitrah Terbaru</span>
+                                </h3>
+                                <button onclick="switchTab('laporan')" class="text-xs text-emerald-400 hover:underline font-semibold">Lihat Semua →</button>
+                            </div>
+                            <div class="overflow-x-auto rounded-xl border border-slate-800">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="bg-slate-800 text-emerald-300 uppercase font-semibold border-b border-slate-700">
+                                            <th class="p-2.5">Kepala Keluarga</th>
+                                            <th class="p-2.5 text-center">RT/RW</th>
+                                            <th class="p-2.5 text-center">Jiwa</th>
+                                            <th class="p-2.5 text-right">Jumlah</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dashboardRecentZakatBody" class="divide-y divide-slate-800 bg-slate-950/40"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Kas & Distribusi Terbaru -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-sm font-bold text-white flex items-center space-x-2">
+                                    <i class="fas fa-wallet text-gold-400"></i>
+                                    <span>Catatan Kas & Distribusi Terbaru</span>
+                                </h3>
+                                <button onclick="switchTab('kas')" class="text-xs text-gold-400 hover:underline font-semibold">Kelola Kas →</button>
+                            </div>
+                            <div class="overflow-x-auto rounded-xl border border-slate-800">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="bg-slate-800 text-gold-300 uppercase font-semibold border-b border-slate-700">
+                                            <th class="p-2.5">Keterangan / Sumber</th>
+                                            <th class="p-2.5 text-center">Kategori</th>
+                                            <th class="p-2.5 text-right">Nominal / Item</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dashboardRecentKasBody" class="divide-y divide-slate-800 bg-slate-950/40"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= TAB 2: ZAKAT FITRAH ================= -->
+                <div id="tab-zakat" class="hidden space-y-6 tab-content">
+                    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl">
+                        <div class="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
+                            <div>
+                                <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+                                    <i class="fas fa-receipt text-emerald-400"></i>
+                                    <span>Form Pembayaran Zakat Fitrah</span>
+                                </h3>
+                                <p class="text-xs text-slate-400">Kepala keluarga dihitung otomatis 1 jiwa, silakan masukkan jumlah anggota keluarga tambahan.</p>
+                            </div>
+                            <div class="text-right text-xs bg-emerald-900/30 border border-emerald-700/50 px-3 py-1.5 rounded-xl text-emerald-300">
+                                Tarif: Uang <span id="lblTarifUang" class="font-bold text-white">Rp 45.000</span>/jiwa | Beras <span id="lblTarifBeras" class="font-bold text-white">2.5</span> kg/jiwa
+                            </div>
+                        </div>
+
+                        <form id="zakatForm" onsubmit="submitZakat(event)" class="space-y-5">
+                            <input type="hidden" id="zakatEditId" value="">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Nama Kepala Keluarga</label>
+                                    <input type="text" id="zakatNama" required placeholder="Cth: Bpk. H. Ahmad Fauzi" 
+                                        class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">RT</label>
+                                        <input type="text" id="zakatRt" required placeholder="01" 
+                                            class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">RW</label>
+                                        <input type="text" id="zakatRw" required placeholder="02" 
+                                            class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Jumlah Anggota Keluarga (Tambahan)</label>
+                                    <input type="number" id="zakatJiwa" min="0" max="20" required value="0" onchange="renderJiwaInputs()" oninput="renderJiwaInputs()"
+                                        class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500" placeholder="0">
+                                    <p class="text-[10px] text-emerald-400 mt-1 font-medium">Total Jiwa Terhitung Otomatis: <span id="labelTotalJiwaCalc" class="font-bold text-white">1</span> Jiwa (1 KK + <span id="labelAnggotaCalc">0</span> Anggota)</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Alamat Lengkap</label>
+                                <input type="text" id="zakatAlamat" required placeholder="Dusun Klampok, Desa Kepyar, Purwantoro" 
+                                    class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500">
+                            </div>
+
+                            <div class="bg-slate-950/50 border border-slate-800 p-4 rounded-2xl space-y-3">
+                                <label class="block text-xs font-semibold uppercase text-emerald-400">Rincian Nama Anggota Keluarga (Selain Kepala Keluarga)</label>
+                                <div id="jiwaInputsContainer" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <p class="text-xs text-slate-500 italic col-span-2">Tidak ada tambahan anggota keluarga (hanya Kepala Keluarga).</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Jenis Pembayaran</label>
+                                    <select id="zakatJenis" onchange="calcZakatTotal()" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm focus:ring-2 focus:ring-emerald-500">
+                                        <option value="Uang">Uang (Rupiah)</option>
+                                        <option value="Beras">Beras (Kilogram)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Total Diterima (Otomatis)</label>
+                                    <input type="text" id="zakatTotalOtomatis" readonly 
+                                        class="w-full px-4 py-2.5 bg-emerald-950/80 border border-emerald-700/50 rounded-xl text-emerald-300 font-bold text-sm">
+                                </div>
+                            </div>
+
+                            <button type="submit" id="zakatSubmitBtn" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/50 transition">
+                                Simpan Pembayaran Zakat Fitrah
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- ================= TAB 3: KAS MASJID ================= -->
+                <div id="tab-kas" class="hidden space-y-6 tab-content">
+                    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                            <div>
+                                <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+                                    <i class="fas fa-wallet text-emerald-400"></i>
+                                    <span>Pencatatan Kas Masjid (Masuk & Keluar)</span>
+                                </h3>
+                                <p class="text-xs text-slate-400">Catat setiap uang/barang masuk dan keluar lengkap dengan detail penanggung jawab dan kegunaan.</p>
+                            </div>
+                            <button onclick="openKasModal()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition shadow">
+                                <i class="fas fa-plus"></i>
+                                <span>Tambah Transaksi Kas</span>
+                            </button>
+                        </div>
+
+                        <!-- Tabel Kas -->
+                        <div class="overflow-x-auto rounded-2xl border border-slate-700 shadow-lg">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="bg-slate-800 text-emerald-300 uppercase tracking-wider font-semibold border-b border-slate-700">
+                                        <th class="p-3.5 border-r border-slate-700">No</th>
+                                        <th class="p-3.5 border-r border-slate-700">Tanggal</th>
+                                        <th class="p-3.5 border-r border-slate-700">Jenis</th>
+                                        <th class="p-3.5 border-r border-slate-700">Pemberi / Sumber</th>
+                                        <th class="p-3.5 border-r border-slate-700">Penanggung Jawab</th>
+                                        <th class="p-3.5 border-r border-slate-700">Kegunaan / Keterangan</th>
+                                        <th class="p-3.5 border-r border-slate-700">Nominal / Barang</th>
+                                        <th class="p-3.5 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kasTableBody" class="divide-y divide-slate-700 bg-slate-900/60"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= TAB 4: MUSTAHIK / 8 ASNAF ================= -->
+                <div id="tab-mustahik" class="hidden space-y-6 tab-content">
+                    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                            <div>
+                                <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+                                    <i class="fas fa-users text-emerald-400"></i>
+                                    <span>Data Penerima Zakat (8 Asnaf)</span>
+                                </h3>
+                                <p class="text-xs text-slate-400">Pengelolaan distribusi zakat lengkap dengan opsi edit, hapus, dan sortir RT/RW.</p>
+                            </div>
+                            <button onclick="openMustahikModal()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center space-x-2 transition shadow">
+                                <i class="fas fa-plus"></i>
+                                <span>Tambah Penerima (Mustahik)</span>
+                            </button>
+                        </div>
+
+                        <!-- Panel Sortir RT / RW -->
+                        <div class="flex flex-wrap items-center gap-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+                            <span class="text-xs font-bold text-slate-300"><i class="fas fa-filter text-emerald-400 mr-1.5"></i> Sortir Berdasarkan RT/RW:</span>
+                            <select id="sortMustahikRtRw" onchange="renderMustahikTable()" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-xs font-semibold focus:ring-2 focus:ring-emerald-500">
+                                <option value="ALL">Semua RT / RW (Tanpa Filter)</option>
+                            </select>
+                        </div>
+
+                        <div class="overflow-x-auto rounded-2xl border border-slate-700 shadow-lg">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="bg-slate-800 text-emerald-300 uppercase tracking-wider font-semibold border-b border-slate-700">
+                                        <th class="p-3.5 border-r border-slate-700">No</th>
+                                        <th class="p-3.5 border-r border-slate-700">Nama Penerima</th>
+                                        <th class="p-3.5 border-r border-slate-700">Kategori Asnaf</th>
+                                        <th class="p-3.5 border-r border-slate-700">Alamat (RT/RW)</th>
+                                        <th class="p-3.5 border-r border-slate-700">Nominal Uang</th>
+                                        <th class="p-3.5 border-r border-slate-700">Beras</th>
+                                        <th class="p-3.5 border-r border-slate-700">Penyalur</th>
+                                        <th class="p-3.5 text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="mustahikTableBody" class="divide-y divide-slate-700 bg-slate-900/60"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= TAB 5: LAPORAN ================= -->
+                <div id="tab-laporan" class="hidden space-y-6 tab-content">
+                    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-6">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                            <div>
+                                <h3 class="text-lg font-bold text-white flex items-center space-x-2">
+                                    <i class="fas fa-chart-bar text-emerald-400"></i>
+                                    <span>Laporan Keuangan & Zakat Masjid</span>
+                                </h3>
+                                <p class="text-xs text-slate-400">Pemisahan transaksi per RT/RW, kolom zakat beras & uang terpisah, serta akumulasi jumlah akhir.</p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button onclick="exportReportToPDF()" class="px-4 py-2 rounded-xl text-xs font-bold bg-gold-500 hover:bg-gold-600 text-slate-950 flex items-center space-x-2 transition shadow">
+                                    <i class="fas fa-file-pdf"></i>
+                                    <span>Unduh Laporan (PDF)</span>
+                                </button>
+                                <div class="flex items-center space-x-1 bg-slate-800 p-1 rounded-xl">
+                                    <button onclick="setReportMode('table')" id="btnModeTable" class="px-4 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white shadow transition">Tabel & Akumulasi</button>
+                                    <button onclick="setReportMode('chart')" id="btnModeChart" class="px-4 py-2 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition">Grafik Visual</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Elemen yang akan dicetak/di-export ke PDF -->
+                        <div id="pdfExportContainer" class="space-y-8 bg-slate-900 p-2 rounded-2xl">
+                            <div class="text-center pb-4 border-b border-slate-800">
+                                <h2 class="text-base font-extrabold text-white">LAPORAN AKHIR PENGELOLAAN ZAKAT & KAS MASJID</h2>
+                                <p class="text-xs text-emerald-400 font-semibold mt-0.5">MASJID BAITURRAHIM — Klampok, Kepyar, Purwantoro, Wonogiri</p>
+                                <p class="text-[10px] text-slate-400 mt-1">Dicetak pada: <span id="printDateSpan"></span></p>
+                            </div>
+
+                            <div>
+                                <h4 class="text-sm font-bold text-emerald-400 mb-3 flex items-center space-x-2">
+                                    <i class="fas fa-receipt"></i><span>Laporan Zakat Fitrah Masuk (Dikelompokkan Berdasarkan RT & RW)</span>
+                                </h4>
+                                <div id="reportZakatGroupedContainer" class="space-y-4"></div>
+                            </div>
+
+                            <div>
+                                <h4 class="text-sm font-bold text-emerald-400 mb-3 flex items-center space-x-2">
+                                    <i class="fas fa-wallet"></i><span>Laporan Transaksi Kas Masjid (Masuk & Keluar)</span>
+                                </h4>
+                                <div class="overflow-x-auto rounded-2xl border border-slate-700 shadow-lg">
+                                    <table class="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr class="bg-slate-800 text-emerald-300 uppercase tracking-wider font-semibold border-b border-slate-700">
+                                                <th class="p-3 border-r border-slate-700">No</th>
+                                                <th class="p-3 border-r border-slate-700">Tanggal</th>
+                                                <th class="p-3 border-r border-slate-700">Jenis</th>
+                                                <th class="p-3 border-r border-slate-700">Pemberi / Sumber</th>
+                                                <th class="p-3 border-r border-slate-700">Penanggung Jawab</th>
+                                                <th class="p-3 border-r border-slate-700">Kegunaan</th>
+                                                <th class="p-3 border-r border-slate-700">Nominal / Barang</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="reportKasTableBody" class="divide-y divide-slate-700 bg-slate-900/60"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 class="text-sm font-bold text-emerald-400 mb-3 flex items-center space-x-2">
+                                    <i class="fas fa-hands-helping"></i><span>Laporan Distribusi Zakat (8 Asnaf)</span>
+                                </h4>
+                                <div class="overflow-x-auto rounded-2xl border border-slate-700 shadow-lg">
+                                    <table class="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr class="bg-slate-800 text-emerald-300 uppercase tracking-wider font-semibold border-b border-slate-700">
+                                                <th class="p-3 border-r border-slate-700">No</th>
+                                                <th class="p-3 border-r border-slate-700">Penerima</th>
+                                                <th class="p-3 border-r border-slate-700">Asnaf</th>
+                                                <th class="p-3 border-r border-slate-700">Alamat</th>
+                                                <th class="p-3 border-r border-slate-700">Uang (Rp)</th>
+                                                <th class="p-3 border-r border-slate-700">Beras (Kg)</th>
+                                                <th class="p-3 border-r border-slate-700">Penyalur</th>
+                                                <th class="p-3 border-r border-slate-700">Tanggal</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="reportDistribTableBody" class="divide-y divide-slate-700 bg-slate-900/60"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="reportChartContainer" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800">
+                                <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-4 text-center">Perbandingan Kategori Asnaf</h4>
+                                <div class="h-64 relative flex items-center justify-center">
+                                    <canvas id="asnafPieChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="bg-slate-950/60 p-5 rounded-2xl border border-slate-800">
+                                <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-4 text-center">Rekapitulasi Keuangan Masjid (Rp)</h4>
+                                <div class="h-64 relative flex items-center justify-center">
+                                    <canvas id="financeBarChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================= TAB 6: PENGATURAN & KEAMANAN ================= -->
+                <div id="tab-pengaturan" class="hidden space-y-6 tab-content">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                            <h3 class="text-base font-bold text-white flex items-center space-x-2 pb-3 border-b border-slate-800">
+                                <i class="fas fa-sliders-h text-emerald-400"></i>
+                                <span>Konfigurasi Tarif Zakat Fitrah</span>
+                            </h3>
+                            <form onsubmit="saveTarif(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Tarif Uang per Jiwa (Rp)</label>
+                                    <input type="number" id="configTarifUang" required value="45000" 
+                                        class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1.5">Tarif Beras per Jiwa (Kg)</label>
+                                    <input type="number" step="0.1" id="configTarifBeras" required value="2.5" 
+                                        class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                                </div>
+                                <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm transition">
+                                    Simpan Perubahan Tarif
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                            <h3 class="text-base font-bold text-white flex items-center space-x-2 pb-3 border-b border-slate-800">
+                                <i class="fas fa-database text-emerald-400"></i>
+                                <span>Cadangan & Pemulihan Data (Backup)</span>
+                            </h3>
+                            <div class="flex space-x-3 pt-2">
+                                <button onclick="exportDataJSON()" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition flex items-center justify-center space-x-2">
+                                    <i class="fas fa-download"></i>
+                                    <span>Unduh Backup (JSON)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MENU KEAMANAN & MANAJEMEN AKUN PENGAMAN -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+                            <div>
+                                <h3 class="text-base font-bold text-white flex items-center space-x-2">
+                                    <i class="fas fa-user-shield text-gold-400"></i>
+                                    <span>Menu Keamanan & Verifikasi Hak Akses Pengguna</span>
+                                </h3>
+                                <p class="text-xs text-slate-400">Gunakan tombol verifikasi di bawah untuk melihat jumlah akun yang sudah ditambahkan serta mengontrol hak akses edit/hapus transaksi.</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="verifyToViewAccounts()" class="px-4 py-2.5 bg-slate-800 hover:bg-slate-750 text-gold-400 border border-gold-500/30 font-bold rounded-xl text-xs flex items-center space-x-2 transition">
+                                    <i class="fas fa-eye"></i>
+                                    <span>Verifikasi & Lihat Akun Terdaftar</span>
+                                </button>
+                                <button onclick="openUserModal()" class="px-4 py-2.5 bg-gold-500 hover:bg-gold-600 text-slate-950 font-bold rounded-xl text-xs flex items-center space-x-2 transition shadow">
+                                    <i class="fas fa-user-plus"></i>
+                                    <span>Tambah Akun</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="accountListContainer" class="hidden space-y-3">
+                            <p class="text-xs text-emerald-400 font-semibold">Daftar Akun Terdaftar dalam Sistem (<span id="accountCount">0</span> Akun):</p>
+                            <div class="overflow-x-auto rounded-2xl border border-slate-700 shadow-lg">
+                                <table class="w-full text-left border-collapse text-xs">
+                                    <thead>
+                                        <tr class="bg-slate-800 text-emerald-300 uppercase tracking-wider font-semibold border-b border-slate-700">
+                                            <th class="p-3 border-r border-slate-700">Nama Pengguna</th>
+                                            <th class="p-3 border-r border-slate-700">Jabatan</th>
+                                            <th class="p-3 border-r border-slate-700">Alamat</th>
+                                            <th class="p-3 border-r border-slate-700">Username</th>
+                                            <th class="p-3 text-center">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="userTableBody" class="divide-y divide-slate-700 bg-slate-900/60"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MENU RIWAYAT (REAL-TIME LOG KEGIATAN) -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+                        <h3 class="text-base font-bold text-white flex items-center space-x-2 pb-3 border-b border-slate-800">
+                            <i class="fas fa-history text-purple-400"></i>
+                            <span>Riwayat Aktivitas Sistem (Real-Time Log)</span>
+                        </h3>
+                        <p class="text-xs text-slate-400">Semua aktivitas termasuk penambahan kas, edit, dan hapus transaksi tercatat secara otomatis dan permanen di Supabase.</p>
+                        
+                        <div class="overflow-x-auto rounded-2xl border border-slate-700 shadow-lg max-h-72 overflow-y-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="bg-slate-800 text-purple-300 uppercase tracking-wider font-semibold border-b border-slate-700">
+                                        <th class="p-3 border-r border-slate-700">Waktu (Real-Time)</th>
+                                        <th class="p-3 border-r border-slate-700">Nama Pengguna / Pelaku</th>
+                                        <th class="p-3">Aktivitas / Kegiatan</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activityLogTableBody" class="divide-y divide-slate-700 bg-slate-900/60"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- ================= BOTTOM NAVIGATION ================= -->
+        <nav class="absolute bottom-0 inset-x-0 bg-slate-900/95 backdrop-blur-xl border-t border-emerald-900/50 px-2 py-2 flex items-center justify-around z-30 shadow-2xl">
+            <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex flex-col items-center space-y-1 text-emerald-400 transition nav-btn px-3 py-1 rounded-xl">
+                <i class="fas fa-home text-base"></i>
+                <span class="text-[10px] font-semibold">Beranda</span>
+            </button>
+            <button onclick="switchTab('zakat')" id="nav-zakat" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-emerald-400 transition nav-btn px-3 py-1 rounded-xl">
+                <i class="fas fa-mosque text-base"></i>
+                <span class="text-[10px] font-semibold">Zakat</span>
+            </button>
+            <button onclick="switchTab('kas')" id="nav-kas" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-emerald-400 transition nav-btn px-3 py-1 rounded-xl">
+                <i class="fas fa-wallet text-base"></i>
+                <span class="text-[10px] font-semibold">Kas</span>
+            </button>
+            <button onclick="switchTab('mustahik')" id="nav-mustahik" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-emerald-400 transition nav-btn px-3 py-1 rounded-xl">
+                <i class="fas fa-users text-base"></i>
+                <span class="text-[10px] font-semibold">Penerima</span>
+            </button>
+            <button onclick="switchTab('laporan')" id="nav-laporan" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-emerald-400 transition nav-btn px-3 py-1 rounded-xl">
+                <i class="fas fa-chart-pie text-base"></i>
+                <span class="text-[10px] font-semibold">Laporan</span>
+            </button>
+            <button onclick="switchTab('pengaturan')" id="nav-pengaturan" class="flex flex-col items-center space-y-1 text-slate-400 hover:text-emerald-400 transition nav-btn px-3 py-1 rounded-xl">
+                <i class="fas fa-cog text-base"></i>
+                <span class="text-[10px] font-semibold">Pengaturan</span>
+            </button>
+        </nav>
+
+        <!-- ================= MODAL TAMBAH/EDIT KAS MASJID ================= -->
+        <div id="kasModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="max-w-md w-full bg-slate-900 border border-emerald-700/50 rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+                <h3 class="text-base font-bold text-white mb-4" id="kasModalTitle">Tambah Transaksi Kas Masjid</h3>
+                <form id="kasForm" onsubmit="saveKasTransaction(event)" class="space-y-4">
+                    <input type="hidden" id="kasEditId" value="">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Tanggal Transaksi</label>
+                        <input type="date" id="kasTanggal" required class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Jenis Transaksi Kas</label>
+                        <select id="kasJenis" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                            <option value="Masuk">Kas Masuk (Pemasukan Uang/Barang)</option>
+                            <option value="Keluar">Kas Keluar (Pengeluaran Dana)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Nama Pemberi / Sumber Dana</label>
+                        <input type="text" id="kasPemberi" required placeholder="Cth: Hamba Allah / Kotak Jumat" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Nama Penanggung Jawab</label>
+                        <input type="text" id="kasPenanggungJawab" required placeholder="Cth: Bendahara Masjid" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Kegunaan Dana / Keterangan</label>
+                        <input type="text" id="kasKegunaan" required placeholder="Cth: Pembelian perlengkapan kebersihan" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Nominal (Rp) atau Jenis Barang</label>
+                        <input type="text" id="kasNominalBarang" required placeholder="Cth: Rp 500.000 atau 5 Buah Karpet Masjid" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div class="flex space-x-2 pt-2">
+                        <button type="button" onclick="closeKasModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-sm">Batal</button>
+                        <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm shadow">Simpan Kas</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= MODAL TAMBAH / EDIT MUSTAHIK ================= -->
+        <div id="mustahikModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="max-w-md w-full bg-slate-900 border border-emerald-700/50 rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+                <h3 class="text-base font-bold text-white mb-4" id="mustahikModalTitle">Tambah Penerima Zakat (Mustahik)</h3>
+                <form id="mustahikForm" onsubmit="saveMustahik(event)" class="space-y-4">
+                    <input type="hidden" id="mustahikEditId" value="">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Nama Penerima</label>
+                        <input type="text" id="mNama" required placeholder="Nama lengkap..." class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">RT</label>
+                            <input type="text" id="mRt" required placeholder="01" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">RW</label>
+                            <input type="text" id="mRw" required placeholder="02" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Alamat Lengkap</label>
+                        <input type="text" id="mAlamat" required placeholder="Dusun Klampok..." class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Kategori 8 Asnaf</label>
+                        <select id="mAsnaf" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                            <option value="Fakir">Fakir</option>
+                            <option value="Miskin">Miskin</option>
+                            <option value="Amil">Amil Zakat</option>
+                            <option value="Muallaf">Muallaf</option>
+                            <option value="Riqab">Riqab</option>
+                            <option value="Gharimin">Gharimin</option>
+                            <option value="Fisabilillah">Fisabilillah</option>
+                            <option value="Ibnu Sabil">Ibnu Sabil</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Alasan Pemberian Zakat</label>
+                        <textarea id="mAlasan" rows="2" required placeholder="Keterangan..." class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm"></textarea>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Uang (Rp)</label>
+                            <input type="number" id="mUang" required value="0" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Beras (Kg)</label>
+                            <input type="number" step="0.5" id="mBeras" required value="0" class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">Petugas / Pihak Penyalur</label>
+                        <input type="text" id="mPenyalur" required placeholder="Nama panitia..." class="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div class="flex space-x-2 pt-2">
+                        <button type="button" onclick="closeMustahikModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-sm">Batal</button>
+                        <button type="submit" class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-sm shadow">Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ================= MODAL TAMBAH/EDIT AKUN ================= -->
+        <div id="userModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <div class="max-w-md w-full bg-slate-900 border border-gold-500/40 rounded-3xl p-6 shadow-2xl">
+                <h3 class="text-base font-bold text-white mb-4">Tambah Akun Pengguna Keamanan</h3>
+                <form id="userForm" onsubmit="saveUserAccount(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gold-400 mb-1">Nama Pengguna</label>
+                        <input type="text" id="uNamaPengguna" required placeholder="Nama lengkap..." class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gold-400 mb-1">Jabatan</label>
+                        <input type="text" id="uJabatan" required placeholder="Cth: Bendahara Masjid" class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gold-400 mb-1">Alamat Pengguna</label>
+                        <input type="text" id="uAlamat" required placeholder="Alamat lengkap..." class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gold-400 mb-1">Username</label>
+                        <input type="text" id="uUsername" required placeholder="Username..." class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-gold-400 mb-1">Password</label>
+                        <input type="password" id="uPassword" required placeholder="Password..." class="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-xl text-white text-sm">
+                    </div>
+                    <div class="flex space-x-2 pt-2">
+                        <button type="button" onclick="closeUserModal()" class="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-sm">Batal</button>
+                        <button type="submit" class="flex-1 py-2.5 bg-gold-500 hover:bg-gold-600 text-slate-950 font-bold rounded-xl text-sm shadow">Simpan Akun</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ================= JAVASCRIPT APP LOGIC WITH SUPABASE & REALTIME ================= -->
+    <script>
+        // INISIALISASI SUPABASE (Ganti dengan URL dan Anon Key project Supabase Anda yang valid)
+        const SUPABASE_URL = 'https://vvbftbdfsxhanbiypfsf.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_byxDZ1imVKisg9a9t...'; // salin penuh sampai habis
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let appState = {
+            tarif: { uang: 45000, beras: 2.5 },
+            users: [],
+            zakatRecords: [],
+            mustahikRecords: [],
+            kasRecords: [],
+            activityLogs: []
+        };
+
+        let pendingAction = null; 
+        let currentReportMode = 'table';
+        let chartsInstance = { asnaf: null, finance: null };
+
+        window.onload = async function() {
+            renderJiwaInputs();
+            await refreshAppData();
+            setupSupabaseRealtime();
+        };
+
+        // HELPER NORMALISASI DATA (Menangani huruf kecil / camelCase dari PostgreSQL Supabase)
+        function normalizeZakat(row) {
+            let parsedAnggota = [];
+            if (Array.isArray(row.anggota)) {
+                parsedAnggota = row.anggota;
+            } else if (typeof row.anggota === 'string') {
+                try { parsedAnggota = JSON.parse(row.anggota); } catch (e) { parsedAnggota = []; }
+            }
+            return {
+                id: row.id,
+                kk: row.kk || '-',
+                rt: String(row.rt || '00'),
+                rw: String(row.rw || '00'),
+                alamat: row.alamat || '-',
+                jiwa: Number(row.jiwa) || 1,
+                jenis: row.jenis || 'Uang',
+                jumlah: Number(row.jumlah) || 0,
+                waktu: row.waktu || row.created_at || '-',
+                petugas: row.petugas || 'Publik / Umum',
+                anggota: parsedAnggota
+            };
+        }
+
+        function normalizeKas(row) {
+            return {
+                id: row.id,
+                tanggal: row.tanggal || '-',
+                jenis: row.jenis || 'Masuk',
+                pemberi: row.pemberi || '-',
+                penanggungJawab: row.penanggungJawab || row.penanggungjawab || '-',
+                kegunaan: row.kegunaan || '-',
+                nominalBarang: String(row.nominalBarang || row.nominalbarang || '0')
+            };
+        }
+
+        function normalizeMustahik(row) {
+            return {
+                id: row.id,
+                nama: row.nama || '-',
+                rt: String(row.rt || '00'),
+                rw: String(row.rw || '00'),
+                alamat: row.alamat || '-',
+                asnaf: row.asnaf || 'Fakir',
+                alasan: row.alasan || '-',
+                uang: Number(row.uang) || 0,
+                beras: Number(row.beras) || 0,
+                penyalur: row.penyalur || '-',
+                tanggal: row.tanggal || '-'
+            };
+        }
+
+        // FUNGSI UTAMA MEMUAT DATA & MERENDER SELURUH UI
+        async function refreshAppData(showManualToast = false) {
+            const syncIcon = document.getElementById('syncIcon');
+            if (syncIcon) syncIcon.classList.add('fa-spin');
+
+            await loadFromSupabase();
+            renderAllUI();
+
+            if (syncIcon) setTimeout(() => syncIcon.classList.remove('fa-spin'), 400);
+            if (showManualToast) {
+                alert('Data berhasil disinkronkan dari Supabase!');
+            }
+        }
+
+        // MERENDER SEMUA KOMPONEN DASHBOARD, TABEL, DAN LAPORAN
+        function renderAllUI() {
+            initDashboard();
+            updateStats();
+            calculateKasBalance();
+            renderDashboardRecentTables();
+            renderKasTable();
+            populateMustahikRtRwDropdown();
+            renderMustahikTable();
+            renderReportTables();
+            renderActivityLogs();
+            renderUserTable();
+            if (currentReportMode === 'chart') {
+                renderCharts();
+            }
+        }
+
+        // FUNGSI LOAD DATA DARI SUPABASE
+        async function loadFromSupabase() {
+            try {
+                // 1. Ambil Tarif
+                const { data: tarifData } = await supabaseClient.from('tarif').select('*').limit(1);
+                if (tarifData && tarifData.length > 0) {
+                    appState.tarif = {
+                        uang: Number(tarifData[0].uang) || 45000,
+                        beras: Number(tarifData[0].beras) || 2.5
+                    };
+                }
+
+                // 2. Ambil Users
+                const { data: usersData } = await supabaseClient.from('users').select('*');
+                if (usersData) appState.users = usersData;
+
+                // 3. Ambil Zakat
+                const { data: zakatData, error: zakatErr } = await supabaseClient
+                    .from('zakat_records')
+                    .select('*')
+                    .order('id', { ascending: false });
+                if (zakatErr) console.error("Error load zakat:", zakatErr);
+                if (zakatData) appState.zakatRecords = zakatData.map(normalizeZakat);
+
+                // 4. Ambil Mustahik
+                const { data: mustahikData, error: mustahikErr } = await supabaseClient
+                    .from('mustahik_records')
+                    .select('*')
+                    .order('id', { ascending: false });
+                if (mustahikErr) console.error("Error load mustahik:", mustahikErr);
+                if (mustahikData) appState.mustahikRecords = mustahikData.map(normalizeMustahik);
+
+                // 5. Ambil Kas
+                const { data: kasData, error: kasErr } = await supabaseClient
+                    .from('kas_records')
+                    .select('*')
+                    .order('id', { ascending: false });
+                if (kasErr) console.error("Error load kas:", kasErr);
+                if (kasData) appState.kasRecords = kasData.map(normalizeKas);
+
+                // 6. Ambil Activity Logs
+                const { data: logsData } = await supabaseClient
+                    .from('activity_logs')
+                    .select('*')
+                    .order('id', { ascending: false })
+                    .limit(100);
+                if (logsData) appState.activityLogs = logsData;
+
+                updateSyncStatus(true);
+            } catch (err) {
+                console.error("Gagal memuat data dari Supabase:", err);
+                updateSyncStatus(false);
+            }
+        }
+
+        function updateSyncStatus(isConnected) {
+            const textEl = document.getElementById('syncStatusText');
+            if (!textEl) return;
+            textEl.textContent = isConnected ? 'Terhubung Cloud' : 'Mode Offline / Cek Kunci';
+        }
+
+        // ================= FITUR SUPABASE REALTIME =================
+        function setupSupabaseRealtime() {
+            supabaseClient
+                .channel('public-db-changes')
+                .on('postgres_changes', { event: '*', schema: 'public' }, async () => {
+                    await refreshAppData();
+                })
+                .subscribe();
+        }
+
+        async function logActivity(username, actionText) {
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+            
+            const newLog = { time: timeStr, user: username, action: actionText };
+            appState.activityLogs.unshift(newLog);
+            renderActivityLogs();
+
+            const { error } = await supabaseClient.from('activity_logs').insert([newLog]);
+            if (error) console.error("Gagal menyimpan log:", error);
+        }
+
+        function renderActivityLogs() {
+            const tbody = document.getElementById('activityLogTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (appState.activityLogs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-400 italic">Belum ada aktivitas tercatat.</td></tr>`;
+                return;
+            }
+            appState.activityLogs.forEach(log => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/50 transition">
+                        <td class="p-3 border-r border-slate-700 text-purple-300 font-mono text-[11px]">${log.time || '-'}</td>
+                        <td class="p-3 border-r border-slate-700 font-bold text-white">${log.user || 'Sistem'}</td>
+                        <td class="p-3 text-slate-300">${log.action || '-'}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        function checkLockAction() {
+            if (appState.users.length === 0) {
+                alert('Aplikasi saat ini dalam mode Akses Bebas karena belum ada akun khusus yang ditambahkan pada menu Pengaturan.');
+                return;
+            }
+            document.getElementById('lockScreen').classList.remove('hidden');
+        }
+
+        function handleUnlock(e) {
+            e.preventDefault();
+            const u = document.getElementById('unlockUsername').value.trim();
+            const p = document.getElementById('unlockPassword').value.trim();
+            const found = appState.users.find(x => x.username === u && x.password === p);
+            if (found) {
+                document.getElementById('lockScreen').classList.add('hidden');
+                document.getElementById('unlockUsername').value = '';
+                document.getElementById('unlockPassword').value = '';
+                document.getElementById('headerUserName').textContent = found.nama;
+                document.getElementById('headerUserRole').textContent = found.jabatan;
+                alert(`Berhasil membuka aplikasi sebagai ${found.nama} (${found.jabatan})`);
+                logActivity(found.nama, 'Membuka kunci aplikasi');
+            } else {
+                alert('Username atau password salah!');
+            }
+        }
+
+        function initDashboard() {
+            document.getElementById('configTarifUang').value = appState.tarif.uang;
+            document.getElementById('configTarifBeras').value = appState.tarif.beras;
+            document.getElementById('lblTarifUang').textContent = formatRupiah(appState.tarif.uang);
+            document.getElementById('lblTarifBeras').textContent = appState.tarif.beras;
+
+            const now = new Date();
+            document.getElementById('printDateSpan').textContent = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()} ${now.getHours()}:${now.getMinutes()}`;
+        }
+
+        function switchTab(tabId) {
+            const tabs = ['dashboard', 'zakat', 'kas', 'mustahik', 'laporan', 'pengaturan'];
+            tabs.forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                if (el) el.classList.add('hidden');
+                const navBtn = document.getElementById(`nav-${t}`);
+                if (navBtn) {
+                    navBtn.classList.remove('text-emerald-400');
+                    navBtn.classList.add('text-slate-400');
+                }
+            });
+
+            const targetTab = document.getElementById(`tab-${tabId}`);
+            if (targetTab) targetTab.classList.remove('hidden');
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if (activeNav) {
+                activeNav.classList.remove('text-slate-400');
+                activeNav.classList.add('text-emerald-400');
+            }
+
+            if (tabId === 'laporan' && currentReportMode === 'chart') {
+                renderCharts();
+            }
+        }
+
+        function renderJiwaInputs() {
+            const jiwaInputEl = document.getElementById('zakatJiwa');
+            if (!jiwaInputEl) return;
+            const countAnggota = parseInt(jiwaInputEl.value) || 0;
+            const totalJiwa = 1 + countAnggota; 
+
+            document.getElementById('labelTotalJiwaCalc').textContent = totalJiwa;
+            document.getElementById('labelAnggotaCalc').textContent = countAnggota;
+
+            const container = document.getElementById('jiwaInputsContainer');
+            container.innerHTML = '';
+            
+            if (countAnggota === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 italic col-span-2">Tidak ada tambahan anggota keluarga (hanya Kepala Keluarga).</p>`;
+            } else {
+                for (let i = 1; i <= countAnggota; i++) {
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <input type="text" required placeholder="Nama Anggota Keluarga ke-${i}" 
+                            class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs jiwaname-input">
+                    `;
+                    container.appendChild(div);
+                }
+            }
+            calcZakatTotal();
+        }
+
+        function calcZakatTotal() {
+            const jiwaInputEl = document.getElementById('zakatJiwa');
+            if (!jiwaInputEl) return;
+            const countAnggota = parseInt(jiwaInputEl.value) || 0;
+            const totalJiwa = 1 + countAnggota;
+            const jenis = document.getElementById('zakatJenis').value;
+            const totalField = document.getElementById('zakatTotalOtomatis');
+
+            if (jenis === 'Uang') {
+                const total = totalJiwa * appState.tarif.uang;
+                totalField.value = formatRupiah(total);
+            } else {
+                const totalKg = totalJiwa * appState.tarif.beras;
+                totalField.value = `${totalKg} Kg Beras`;
+            }
+        }
+
+        async function submitZakat(e) {
+            e.preventDefault();
+            const submitBtn = document.getElementById('zakatSubmitBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Menyimpan ke Cloud...';
+
+            const editId = document.getElementById('zakatEditId').value;
+            const kk = document.getElementById('zakatNama').value.trim();
+            const rt = document.getElementById('zakatRt').value.trim();
+            const rw = document.getElementById('zakatRw').value.trim();
+            const alamat = document.getElementById('zakatAlamat').value.trim();
+            const countAnggota = parseInt(document.getElementById('zakatJiwa').value) || 0;
+            const totalJiwa = 1 + countAnggota;
+            const jenis = document.getElementById('zakatJenis').value;
+            
+            const nameInputs = document.querySelectorAll('.jiwaname-input');
+            const anggota = Array.from(nameInputs).map(inp => inp.value.trim());
+            let jumlahVal = jenis === 'Uang' ? totalJiwa * appState.tarif.uang : totalJiwa * appState.tarif.beras;
+
+            const now = new Date();
+            const timeStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+            try {
+                if (editId) {
+                    const updatedObj = { kk, rt, rw, alamat, jiwa: totalJiwa, jenis, jumlah: jumlahVal, anggota };
+                    const { error } = await supabaseClient.from('zakat_records').update(updatedObj).eq('id', editId);
+                    if (error) throw error;
+
+                    await logActivity('Pengguna Terverifikasi', `Mengubah data transaksi Zakat Fitrah: ${kk}`);
+                    document.getElementById('zakatEditId').value = '';
+                } else {
+                    const payload = {
+                        kk, rt, rw, alamat, jiwa: totalJiwa, jenis, jumlah: jumlahVal, waktu: timeStr, petugas: 'Publik / Umum', anggota
+                    };
+                    const { data, error } = await supabaseClient.from('zakat_records').insert([payload]).select();
+                    if (error) throw error;
+
+                    // Langsung masukkan ke appState (Optimistic UI)
+                    if (data && data.length > 0) {
+                        appState.zakatRecords.unshift(normalizeZakat(data[0]));
+                    } else {
+                        appState.zakatRecords.unshift(normalizeZakat({ id: Date.now(), ...payload }));
+                    }
+                    await logActivity('Publik / Umum', `Menambahkan transaksi Zakat Fitrah baru: ${kk} (${jenis})`);
+                }
+
+                renderAllUI();
+                alert('Data zakat fitrah berhasil disimpan dan tercatat di dashboard!');
+                document.getElementById('zakatForm').reset();
+                document.getElementById('zakatJiwa').value = 0;
+                renderJiwaInputs();
+                await refreshAppData();
+                switchTab('dashboard');
+            } catch (err) {
+                console.error("Error simpan zakat:", err);
+                alert('Gagal menyimpan zakat ke Supabase: ' + (err.message || 'Periksa konfigurasi tabel/RLS Supabase.'));
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Simpan Pembayaran Zakat Fitrah';
+            }
+        }
+
+        // ================= KAS MASJID FUNCTIONS =================
+        function openKasModal(editId = null) {
+            document.getElementById('kasForm').reset();
+            document.getElementById('kasEditId').value = '';
+            document.getElementById('kasTanggal').value = new Date().toISOString().split('T')[0];
+
+            if (editId) {
+                const item = appState.kasRecords.find(x => x.id == editId);
+                if (item) {
+                    document.getElementById('kasEditId').value = item.id;
+                    document.getElementById('kasTanggal').value = item.tanggal;
+                    document.getElementById('kasJenis').value = item.jenis;
+                    document.getElementById('kasPemberi').value = item.pemberi;
+                    document.getElementById('kasPenanggungJawab').value = item.penanggungJawab;
+                    document.getElementById('kasKegunaan').value = item.kegunaan;
+                    document.getElementById('kasNominalBarang').value = item.nominalBarang;
+                    document.getElementById('kasModalTitle').textContent = 'Edit Transaksi Kas Masjid';
+                }
+            } else {
+                document.getElementById('kasModalTitle').textContent = 'Tambah Transaksi Kas Masjid';
+            }
+            document.getElementById('kasModal').classList.remove('hidden');
+        }
+
+        function closeKasModal() {
+            document.getElementById('kasModal').classList.add('hidden');
+        }
+
+        async function saveKasTransaction(e) {
+            e.preventDefault();
+            const editId = document.getElementById('kasEditId').value;
+            const tanggal = document.getElementById('kasTanggal').value;
+            const jenis = document.getElementById('kasJenis').value;
+            const pemberi = document.getElementById('kasPemberi').value.trim();
+            const penanggungJawab = document.getElementById('kasPenanggungJawab').value.trim();
+            const kegunaan = document.getElementById('kasKegunaan').value.trim();
+            const nominalBarang = document.getElementById('kasNominalBarang').value.trim();
+
+            // Menggunakan lowercase key agar cocok 100% dengan skema kolom PostgreSQL Supabase
+            const dbPayload = {
+                tanggal,
+                jenis,
+                pemberi,
+                penanggungjawab: penanggungJawab,
+                kegunaan,
+                nominalbarang: nominalBarang
+            };
+
+            try {
+                if (editId) {
+                    const { error } = await supabaseClient.from('kas_records').update(dbPayload).eq('id', editId);
+                    if (error) throw error;
+                    await logActivity('Pengguna Terverifikasi', `Mengubah data Kas ${jenis}: ${kegunaan}`);
+                    alert('Transaksi kas berhasil diperbarui!');
+                } else {
+                    const { data, error } = await supabaseClient.from('kas_records').insert([dbPayload]).select();
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        appState.kasRecords.unshift(normalizeKas(data[0]));
+                    } else {
+                        appState.kasRecords.unshift(normalizeKas({ id: Date.now(), ...dbPayload }));
+                    }
+                    await logActivity('Publik / Pengguna', `Menambahkan Kas ${jenis}: ${kegunaan} (${nominalBarang})`);
+                    alert('Transaksi kas berhasil dicatat dan tampil di dashboard!');
+                }
+
+                closeKasModal();
+                renderAllUI();
+                await refreshAppData();
+            } catch (err) {
+                console.error("Error simpan kas:", err);
+                alert('Gagal menyimpan kas ke Supabase: ' + (err.message || 'Periksa kolom tabel kas_records.'));
+            }
+        }
+
+        function renderKasTable() {
+            const tbody = document.getElementById('kasTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (appState.kasRecords.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400 italic">Belum ada catatan kas masjid. Data dimulai dari 0.</td></tr>`;
+                return;
+            }
+            appState.kasRecords.forEach((k, idx) => {
+                const badgeColor = k.jenis === 'Masuk' ? 'bg-emerald-900/40 text-emerald-300' : 'bg-red-900/40 text-red-300';
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/50 transition">
+                        <td class="p-3.5 border-r border-slate-700 font-semibold text-white">${idx + 1}</td>
+                        <td class="p-3.5 border-r border-slate-700 text-slate-300">${k.tanggal}</td>
+                        <td class="p-3.5 border-r border-slate-700"><span class="px-2.5 py-1 rounded-lg ${badgeColor} font-semibold text-[10px]">${k.jenis}</span></td>
+                        <td class="p-3.5 border-r border-slate-700 font-bold text-white">${k.pemberi}</td>
+                        <td class="p-3.5 border-r border-slate-700 text-slate-300">${k.penanggungJawab}</td>
+                        <td class="p-3.5 border-r border-slate-700 text-slate-300">${k.kegunaan}</td>
+                        <td class="p-3.5 border-r border-slate-700 font-semibold text-emerald-400">${k.nominalBarang}</td>
+                        <td class="p-3.5 text-center space-x-1">
+                            <button onclick="requestAuthForAction('edit_kas', ${k.id})" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition" title="Edit Transaksi"><i class="fas fa-edit text-xs"></i></button>
+                            <button onclick="requestAuthForAction('delete_kas', ${k.id})" class="p-1.5 bg-red-900/30 hover:bg-red-900/60 text-red-300 rounded-lg transition" title="Hapus Transaksi"><i class="fas fa-trash text-xs"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function updateStats() {
+            let totalUangZakat = 0;
+            let totalBerasZakat = 0;
+            let totalJiwa = 0;
+
+            appState.zakatRecords.forEach(r => {
+                totalJiwa += Number(r.jiwa) || 0;
+                if (r.jenis === 'Uang') {
+                    totalUangZakat += Number(r.jumlah) || 0;
+                } else {
+                    totalBerasZakat += Number(r.jumlah) || 0;
+                }
+            });
+
+            const statTotalZakat = document.getElementById('statTotalZakat');
+            if (statTotalZakat) statTotalZakat.textContent = formatRupiah(totalUangZakat);
+            
+            const statTotalBeras = document.getElementById('statTotalBeras');
+            if (statTotalBeras) statTotalBeras.textContent = `${totalBerasZakat} Kg`;
+
+            const statTotalJiwa = document.getElementById('statTotalJiwa');
+            if (statTotalJiwa) statTotalJiwa.textContent = totalJiwa;
+
+            if (appState.zakatRecords.length > 0) {
+                const last = appState.zakatRecords[0];
+                const statLastTxName = document.getElementById('statLastTxName');
+                if (statLastTxName) statLastTxName.textContent = `${last.kk} (${last.jenis})`;
+                const statLastTxTime = document.getElementById('statLastTxTime');
+                if (statLastTxTime) statLastTxTime.textContent = last.waktu;
+            } else {
+                const statLastTxName = document.getElementById('statLastTxName');
+                if (statLastTxName) statLastTxName.textContent = '-';
+                const statLastTxTime = document.getElementById('statLastTxTime');
+                if (statLastTxTime) statLastTxTime.textContent = 'Belum ada transaksi';
+            }
+        }
+
+        function calculateKasBalance() {
+            let totalInfaq = 0;
+            let saldoKas = 0;
+            
+            appState.kasRecords.forEach(k => {
+                const pemberiLower = (k.pemberi || '').toLowerCase();
+                const kegLower = (k.kegunaan || '').toLowerCase();
+                const nomStr = (k.nominalBarang || '').toLowerCase();
+                
+                // Ekstrak angka jika ada format Rp / nominal uang
+                let cleanNom = 0;
+                if (!nomStr.includes('kg') && !nomStr.includes('buah') && !nomStr.includes('sak') && !nomStr.includes('dus')) {
+                    cleanNom = parseInt((k.nominalBarang || '').replace(/[^0-9]/g, '')) || 0;
+                }
+
+                if (pemberiLower.includes('infaq') || kegLower.includes('infaq') || nomStr.includes('infaq') || pemberiLower.includes('kotak')) {
+                    totalInfaq += cleanNom;
+                }
+                if (k.jenis === 'Masuk') saldoKas += cleanNom;
+                else saldoKas -= cleanNom;
+            });
+
+            const statTotalInfaq = document.getElementById('statTotalInfaq');
+            if (statTotalInfaq) statTotalInfaq.textContent = formatRupiah(totalInfaq);
+            const statSaldoKas = document.getElementById('statSaldoKas');
+            if (statSaldoKas) statSaldoKas.textContent = formatRupiah(saldoKas);
+        }
+
+        // TABEL RINGKASAN DATA TERBARU DI HALAMAN DASHBOARD
+        function renderDashboardRecentTables() {
+            const zBody = document.getElementById('dashboardRecentZakatBody');
+            if (zBody) {
+                zBody.innerHTML = '';
+                const recentZakat = appState.zakatRecords.slice(0, 5);
+                if (recentZakat.length === 0) {
+                    zBody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-500 italic">Belum ada data zakat masuk.</td></tr>`;
+                } else {
+                    recentZakat.forEach(r => {
+                        const valText = r.jenis === 'Uang' ? formatRupiah(r.jumlah) : `${r.jumlah} Kg`;
+                        const valColor = r.jenis === 'Uang' ? 'text-emerald-400' : 'text-lime-400';
+                        zBody.innerHTML += `
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="p-2.5 font-semibold text-white">${r.kk}</td>
+                                <td class="p-2.5 text-center text-slate-400">${r.rt}/${r.rw}</td>
+                                <td class="p-2.5 text-center text-slate-300">${r.jiwa}</td>
+                                <td class="p-2.5 text-right font-bold ${valColor}">${valText}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            }
+
+            const kBody = document.getElementById('dashboardRecentKasBody');
+            if (kBody) {
+                kBody.innerHTML = '';
+                const recentKas = appState.kasRecords.slice(0, 5);
+                if (recentKas.length === 0) {
+                    kBody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-slate-500 italic">Belum ada catatan kas masjid.</td></tr>`;
+                } else {
+                    recentKas.forEach(k => {
+                        const badge = k.jenis === 'Masuk' 
+                            ? '<span class="px-2 py-0.5 rounded bg-emerald-900/50 text-emerald-300 text-[10px]">Masuk</span>'
+                            : '<span class="px-2 py-0.5 rounded bg-red-900/50 text-red-300 text-[10px]">Keluar</span>';
+                        kBody.innerHTML += `
+                            <tr class="hover:bg-slate-800/40">
+                                <td class="p-2.5 font-semibold text-white">${k.kegunaan} <span class="block text-[10px] font-normal text-slate-400">${k.pemberi}</span></td>
+                                <td class="p-2.5 text-center">${badge}</td>
+                                <td class="p-2.5 text-right font-bold text-gold-400">${k.nominalBarang}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            }
+        }
+
+        // ================= SISTEM KEAMANAN & HAK AKSES =================
+        function requestAuthForAction(type, id) {
+            if (appState.users.length === 0) {
+                executeVerifiedAction(type, id, 'Akses Bebas');
+                return;
+            }
+            pendingAction = { type, id };
+            document.getElementById('verifyUser').value = '';
+            document.getElementById('verifyPass').value = '';
+            document.getElementById('authVerifyError').classList.add('hidden');
+            document.getElementById('authVerifyTitle').textContent = `Verifikasi Hak Akses (${type.replace('_', ' ').toUpperCase()})`;
+            document.getElementById('authVerifyDesc').textContent = 'Masukkan username dan password akun terdaftar untuk membuka hak akses edit/hapus transaksi.';
+            document.getElementById('authVerifyModal').classList.remove('hidden');
+        }
+
+        function closeAuthVerifyModal() {
+            document.getElementById('authVerifyModal').classList.add('hidden');
+            pendingAction = null;
+        }
+
+        function confirmAuthAction(e) {
+            e.preventDefault();
+            const u = document.getElementById('verifyUser').value.trim();
+            const p = document.getElementById('verifyPass').value.trim();
+            const found = appState.users.find(x => x.username === u && x.password === p);
+
+            if (found) {
+                closeAuthVerifyModal();
+                executeVerifiedAction(pendingAction.type, pendingAction.id, `${found.nama} (${found.jabatan})`);
+            } else {
+                const err = document.getElementById('authVerifyError');
+                err.textContent = 'Username atau kata sandi tidak valid!';
+                err.classList.remove('hidden');
+            }
+        }
+
+        async function executeVerifiedAction(type, id, operatorName) {
+            if (type === 'edit_zakat') {
+                const item = appState.zakatRecords.find(x => x.id == id);
+                if (!item) return;
+                switchTab('zakat');
+                document.getElementById('zakatEditId').value = item.id;
+                document.getElementById('zakatNama').value = item.kk;
+                document.getElementById('zakatRt').value = item.rt;
+                document.getElementById('zakatRw').value = item.rw;
+                document.getElementById('zakatAlamat').value = item.alamat;
+                document.getElementById('zakatJiwa').value = item.jiwa > 0 ? item.jiwa - 1 : 0;
+                document.getElementById('zakatJenis').value = item.jenis;
+                renderJiwaInputs();
+                
+                if (item.anggota && item.anggota.length > 0) {
+                    const nameInputs = document.querySelectorAll('.jiwaname-input');
+                    item.anggota.forEach((val, idx) => {
+                        if (nameInputs[idx]) nameInputs[idx].value = val;
+                    });
+                }
+
+                document.getElementById('zakatSubmitBtn').textContent = 'Perbarui Zakat Fitrah';
+                await logActivity(operatorName, `Mengakses tombol edit transaksi Zakat Fitrah: ${item.kk}`);
+            } else if (type === 'delete_zakat') {
+                const item = appState.zakatRecords.find(x => x.id == id);
+                if (confirm('Hapus transaksi zakat ini dari sistem?')) {
+                    await supabaseClient.from('zakat_records').delete().eq('id', id);
+                    appState.zakatRecords = appState.zakatRecords.filter(x => x.id != id);
+                    renderAllUI();
+                    await logActivity(operatorName, `Menghapus transaksi Zakat Fitrah: ${item ? item.kk : id}`);
+                    alert('Transaksi zakat berhasil dihapus.');
+                    await refreshAppData();
+                }
+            } else if (type === 'edit_kas') {
+                openKasModal(id);
+                await logActivity(operatorName, `Mengakses tombol edit transaksi Kas ID: ${id}`);
+            } else if (type === 'delete_kas') {
+                const item = appState.kasRecords.find(x => x.id == id);
+                if (confirm('Hapus transaksi kas masjid ini dari sistem?')) {
+                    await supabaseClient.from('kas_records').delete().eq('id', id);
+                    appState.kasRecords = appState.kasRecords.filter(x => x.id != id);
+                    renderAllUI();
+                    await logActivity(operatorName, `Menghapus transaksi Kas: ${item ? item.kegunaan : id}`);
+                    alert('Transaksi kas berhasil dihapus.');
+                    await refreshAppData();
+                }
+            } else if (type === 'edit_mustahik') {
+                openMustahikModalForEdit(id);
+                await logActivity(operatorName, `Mengakses tombol edit Mustahik ID: ${id}`);
+            } else if (type === 'delete_mustahik') {
+                const item = appState.mustahikRecords.find(x => x.id == id);
+                if (confirm('Hapus data penerima ini?')) {
+                    await supabaseClient.from('mustahik_records').delete().eq('id', id);
+                    appState.mustahikRecords = appState.mustahikRecords.filter(x => x.id != id);
+                    renderAllUI();
+                    await logActivity(operatorName, `Menghapus data penerima zakat (Mustahik): ${item ? item.nama : id}`);
+                    alert('Data penerima berhasil dihapus.');
+                    await refreshAppData();
+                }
+            } else if (type === 'view_accounts') {
+                document.getElementById('accountListContainer').classList.remove('hidden');
+                document.getElementById('accountCount').textContent = appState.users.length;
+                renderUserTable();
+                await logActivity(operatorName, 'Melakukan verifikasi pengaturan untuk melihat jumlah akun yang terdaftar');
+                alert(`Verifikasi berhasil! Total terdapat ${appState.users.length} akun yang terdaftar di dalam sistem aplikasi.`);
+            }
+        }
+
+        function verifyToViewAccounts() {
+            if (appState.users.length === 0) {
+                alert('Belum ada akun terdaftar. Aplikasi saat ini dalam akses bebas.');
+                document.getElementById('accountListContainer').classList.remove('hidden');
+                document.getElementById('accountCount').textContent = 0;
+                renderUserTable();
+                return;
+            }
+            requestAuthForAction('view_accounts', null);
+        }
+
+        // ================= MUSTAHIK (PENERIMA) =================
+        function populateMustahikRtRwDropdown() {
+            const selectEl = document.getElementById('sortMustahikRtRw');
+            if (!selectEl) return;
+            const currentVal = selectEl.value;
+            
+            const setRtRw = new Set();
+            appState.mustahikRecords.forEach(m => {
+                setRtRw.add(`RT ${m.rt} / RW ${m.rw}`);
+            });
+
+            selectEl.innerHTML = `<option value="ALL">Semua RT / RW (Tanpa Filter)</option>`;
+            setRtRw.forEach(val => {
+                selectEl.innerHTML += `<option value="${val}">${val}</option>`;
+            });
+            selectEl.value = currentVal || 'ALL';
+        }
+
+        function renderMustahikTable() {
+            const tbody = document.getElementById('mustahikTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const filterVal = document.getElementById('sortMustahikRtRw') ? document.getElementById('sortMustahikRtRw').value : 'ALL';
+            
+            let filtered = appState.mustahikRecords;
+            if (filterVal !== 'ALL') {
+                filtered = appState.mustahikRecords.filter(m => `RT ${m.rt} / RW ${m.rw}` === filterVal);
+            }
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400 italic">Belum ada data penerima zakat. Nilai awal 0.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach((m, idx) => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/50 transition">
+                        <td class="p-3.5 border-r border-slate-700 font-semibold text-white">${idx + 1}</td>
+                        <td class="p-3.5 border-r border-slate-700 font-bold text-white">${m.nama}</td>
+                        <td class="p-3.5 border-r border-slate-700"><span class="px-2.5 py-1 rounded-lg bg-emerald-900/40 text-emerald-300 font-semibold text-[10px]">${m.asnaf}</span></td>
+                        <td class="p-3.5 border-r border-slate-700 text-slate-300">RT ${m.rt}/RW ${m.rw} (${m.alamat})</td>
+                        <td class="p-3.5 border-r border-slate-700 font-semibold text-emerald-400">${formatRupiah(m.uang)}</td>
+                        <td class="p-3.5 border-r border-slate-700 text-slate-300">${m.beras} Kg</td>
+                        <td class="p-3.5 border-r border-slate-700 text-slate-400">${m.penyalur}</td>
+                        <td class="p-3.5 text-center space-x-1">
+                            <button onclick="requestAuthForAction('edit_mustahik', ${m.id})" class="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition" title="Edit Penerima"><i class="fas fa-edit text-xs"></i></button>
+                            <button onclick="requestAuthForAction('delete_mustahik', ${m.id})" class="p-1.5 bg-red-900/30 hover:bg-red-900/60 text-red-300 rounded-lg transition" title="Hapus Penerima"><i class="fas fa-trash text-xs"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function openMustahikModal() {
+            document.getElementById('mustahikForm').reset();
+            document.getElementById('mustahikEditId').value = '';
+            document.getElementById('mUang').value = 0;
+            document.getElementById('mBeras').value = 0;
+            document.getElementById('mustahikModalTitle').textContent = 'Tambah Penerima Zakat (Mustahik)';
+            document.getElementById('mustahikModal').classList.remove('hidden');
+        }
+
+        function openMustahikModalForEdit(id) {
+            const item = appState.mustahikRecords.find(x => x.id == id);
+            if (!item) return;
+            document.getElementById('mustahikForm').reset();
+            document.getElementById('mustahikEditId').value = item.id;
+            document.getElementById('mNama').value = item.nama;
+            document.getElementById('mRt').value = item.rt;
+            document.getElementById('mRw').value = item.rw;
+            document.getElementById('mAlamat').value = item.alamat;
+            document.getElementById('mAsnaf').value = item.asnaf;
+            document.getElementById('mAlasan').value = item.alasan || '';
+            document.getElementById('mUang').value = item.uang;
+            document.getElementById('mBeras').value = item.beras;
+            document.getElementById('mPenyalur').value = item.penyalur;
+            document.getElementById('mustahikModalTitle').textContent = 'Edit Data Penerima Zakat (Mustahik)';
+            document.getElementById('mustahikModal').classList.remove('hidden');
+        }
+
+        function closeMustahikModal() {
+            document.getElementById('mustahikModal').classList.add('hidden');
+        }
+
+        async function saveMustahik(e) {
+            e.preventDefault();
+            const editId = document.getElementById('mustahikEditId').value;
+            const nama = document.getElementById('mNama').value.trim();
+            const rt = document.getElementById('mRt').value.trim();
+            const rw = document.getElementById('mRw').value.trim();
+            const alamat = document.getElementById('mAlamat').value.trim();
+            const asnaf = document.getElementById('mAsnaf').value;
+            const alasan = document.getElementById('mAlasan').value.trim();
+            const uang = parseFloat(document.getElementById('mUang').value) || 0;
+            const beras = parseFloat(document.getElementById('mBeras').value) || 0;
+            const penyalur = document.getElementById('mPenyalur').value.trim();
+
+            try {
+                if (editId) {
+                    const updatedObj = { nama, rt, rw, alamat, asnaf, alasan, uang, beras, penyalur };
+                    const { error } = await supabaseClient.from('mustahik_records').update(updatedObj).eq('id', editId);
+                    if (error) throw error;
+                    await logActivity('Pengguna Terverifikasi', `Memperbarui data Mustahik: ${nama}`);
+                    alert('Data penerima zakat berhasil diperbarui!');
+                } else {
+                    const payload = {
+                        nama, rt, rw, alamat, asnaf, alasan, uang, beras, penyalur,
+                        tanggal: new Date().toISOString().split('T')[0]
+                    };
+                    const { data, error } = await supabaseClient.from('mustahik_records').insert([payload]).select();
+                    if (error) throw error;
+
+                    if (data && data.length > 0) {
+                        appState.mustahikRecords.unshift(normalizeMustahik(data[0]));
+                    } else {
+                        appState.mustahikRecords.unshift(normalizeMustahik({ id: Date.now(), ...payload }));
+                    }
+                    await logActivity('Publik / Pengguna', `Menambahkan data Mustahik baru: ${nama}`);
+                    alert('Data penerima zakat berhasil disimpan dan tercatat!');
+                }
+
+                closeMustahikModal();
+                renderAllUI();
+                await refreshAppData();
+            } catch (err) {
+                console.error("Error simpan mustahik:", err);
+                alert('Gagal menyimpan data Mustahik: ' + (err.message || 'Periksa kolom tabel mustahik_records.'));
+            }
+        }
+
+        // ================= LAPORAN =================
+        function renderReportTables() {
+            const zakatGroupContainer = document.getElementById('reportZakatGroupedContainer');
+            if (zakatGroupContainer) {
+                zakatGroupContainer.innerHTML = '';
+                if (appState.zakatRecords.length === 0) {
+                    zakatGroupContainer.innerHTML = `<div class="p-6 text-center text-slate-400 italic bg-slate-950/40 rounded-2xl border border-slate-800">Belum ada data zakat masuk.</div>`;
+                } else {
+                    const groups = {};
+                    appState.zakatRecords.forEach(r => {
+                        const key = `RT ${r.rt} / RW ${r.rw}`;
+                        if (!groups[key]) groups[key] = [];
+                        groups[key].push(r);
+                    });
+
+                    for (const [rtRwKey, records] of Object.entries(groups)) {
+                        let groupTotalJiwa = 0;
+                        let groupTotalUang = 0;
+                        let groupTotalBeras = 0;
+
+                        let rowsHtml = '';
+                        records.forEach((r, idx) => {
+                            groupTotalJiwa += Number(r.jiwa) || 0;
+                            const nominalUang = r.jenis === 'Uang' ? (Number(r.jumlah) || 0) : 0;
+                            const nominalBeras = r.jenis === 'Beras' ? (Number(r.jumlah) || 0) : 0;
+
+                            if (r.jenis === 'Uang') groupTotalUang += nominalUang;
+                            if (r.jenis === 'Beras') groupTotalBeras += nominalBeras;
+
+                            rowsHtml += `
+                                <tr class="hover:bg-slate-800/50 transition">
+                                    <td class="p-3 border-r border-slate-700">${idx + 1}</td>
+                                    <td class="p-3 border-r border-slate-700 font-bold text-white">${r.kk}</td>
+                                    <td class="p-3 border-r border-slate-700 text-slate-300">${r.alamat}</td>
+                                    <td class="p-3 border-r border-slate-700 text-center font-semibold">${r.jiwa} Jiwa</td>
+                                    <td class="p-3 border-r border-slate-700 font-semibold text-emerald-400">${nominalUang > 0 ? formatRupiah(nominalUang) : '-'}</td>
+                                    <td class="p-3 border-r border-slate-700 font-semibold text-lime-400">${nominalBeras > 0 ? nominalBeras + ' Kg' : '-'}</td>
+                                    <td class="p-3 border-r border-slate-700 text-slate-400">${r.waktu}</td>
+                                    <td class="p-3 text-center space-x-1">
+                                        <button onclick="requestAuthForAction('edit_zakat', ${r.id})" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[10px]"><i class="fas fa-edit"></i></button>
+                                        <button onclick="requestAuthForAction('delete_zakat', ${r.id})" class="px-2 py-1 bg-red-900/30 hover:bg-red-900/60 text-red-300 rounded text-[10px]"><i class="fas fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        zakatGroupContainer.innerHTML += `
+                            <div class="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 space-y-3">
+                                <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+                                    <h5 class="text-xs font-bold text-gold-400 uppercase tracking-wider"><i class="fas fa-map-marker-alt mr-1"></i> Wilayah: ${rtRwKey}</h5>
+                                    <span class="text-[11px] font-semibold bg-emerald-900/40 text-emerald-300 px-2.5 py-1 rounded-lg">${records.length} Muzakki</span>
+                                </div>
+                                <div class="overflow-x-auto rounded-xl border border-slate-800">
+                                    <table class="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr class="bg-slate-800 text-emerald-300 uppercase tracking-wider font-semibold border-b border-slate-700">
+                                                <th class="p-3 border-r border-slate-700">No</th>
+                                                <th class="p-3 border-r border-slate-700">Kepala Keluarga</th>
+                                                <th class="p-3 border-r border-slate-700">Alamat</th>
+                                                <th class="p-3 border-r border-slate-700 text-center">Jiwa</th>
+                                                <th class="p-3 border-r border-slate-700">Zakat Uang</th>
+                                                <th class="p-3 border-r border-slate-700">Zakat Beras</th>
+                                                <th class="p-3 border-r border-slate-700">Waktu</th>
+                                                <th class="p-3 text-center">Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-800 bg-slate-900/40">
+                                            ${rowsHtml}
+                                        </tbody>
+                                        <tfoot>
+                                            <tr class="bg-emerald-950/80 font-bold text-white border-t-2 border-emerald-700">
+                                                <td colspan="3" class="p-3 text-right text-emerald-300 uppercase tracking-wider">Akumulasi Jumlah Akhir (${rtRwKey}):</td>
+                                                <td class="p-3 text-center text-emerald-300">${groupTotalJiwa} Jiwa</td>
+                                                <td class="p-3 text-emerald-400">${formatRupiah(groupTotalUang)}</td>
+                                                <td colspan="3" class="p-3 text-lime-400">${groupTotalBeras} Kg Beras</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            }
+
+            const kBody = document.getElementById('reportKasTableBody');
+            if (kBody) {
+                kBody.innerHTML = '';
+                if (appState.kasRecords.length === 0) {
+                    kBody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-slate-400 italic">Belum ada transaksi kas masjid.</td></tr>`;
+                } else {
+                    appState.kasRecords.forEach((k, idx) => {
+                        const badgeColor = k.jenis === 'Masuk' ? 'bg-emerald-900/40 text-emerald-300' : 'bg-red-900/40 text-red-300';
+                        kBody.innerHTML += `
+                            <tr class="hover:bg-slate-800/50 transition">
+                                <td class="p-3 border-r border-slate-700">${idx + 1}</td>
+                                <td class="p-3 border-r border-slate-700 text-slate-300">${k.tanggal}</td>
+                                <td class="p-3 border-r border-slate-700"><span class="px-2 py-0.5 rounded ${badgeColor} text-[10px]">${k.jenis}</span></td>
+                                <td class="p-3 border-r border-slate-700 font-bold text-white">${k.pemberi}</td>
+                                <td class="p-3 border-r border-slate-700 text-slate-300">${k.penanggungJawab}</td>
+                                <td class="p-3 border-r border-slate-700 text-slate-300">${k.kegunaan}</td>
+                                <td class="p-3 border-r border-slate-700 font-semibold text-emerald-400">${k.nominalBarang}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            }
+
+            const dBody = document.getElementById('reportDistribTableBody');
+            if (dBody) {
+                dBody.innerHTML = '';
+                if (appState.mustahikRecords.length === 0) {
+                    dBody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400 italic">Belum ada data distribusi.</td></tr>`;
+                } else {
+                    appState.mustahikRecords.forEach((m, idx) => {
+                        dBody.innerHTML += `
+                            <tr class="hover:bg-slate-800/50 transition">
+                                <td class="p-3 border-r border-slate-700">${idx + 1}</td>
+                                <td class="p-3 border-r border-slate-700 font-bold text-white">${m.nama}</td>
+                                <td class="p-3 border-r border-slate-700"><span class="px-2 py-0.5 rounded bg-gold-500/20 text-gold-400 text-[10px] font-semibold">${m.asnaf}</span></td>
+                                <td class="p-3 border-r border-slate-700 text-slate-300">${m.alamat}</td>
+                                <td class="p-3 border-r border-slate-700 font-semibold text-emerald-400">${formatRupiah(m.uang)}</td>
+                                <td class="p-3 border-r border-slate-700 text-slate-300">${m.beras} Kg</td>
+                                <td class="p-3 border-r border-slate-700 text-slate-400">${m.penyalur}</td>
+                                <td class="p-3 border-r border-slate-700 text-slate-400">${m.tanggal}</td>
+                            </tr>
+                        `;
+                    });
+                }
+            }
+        }
+
+        function exportReportToPDF() {
+            const element = document.getElementById('pdfExportContainer');
+            const opt = {
+                margin:       0.5,
+                filename:     `Laporan_Masjid_Baiturrahim_${new Date().toISOString().split('T')[0]}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'in', format: 'a4', orientation: 'landscape' }
+            };
+
+            html2pdf().from(element).set(opt).save().then(() => {
+                alert('Laporan berhasil diunduh dan disimpan dalam bentuk file PDF!');
+                logActivity('Pengguna', 'Mengunduh laporan keuangan dan zakat dalam bentuk file PDF');
+            }).catch(err => {
+                alert('Gagal mengunduh PDF: ' + err.message);
+            });
+        }
+
+        function setReportMode(mode) {
+            currentReportMode = mode;
+            const tBtn = document.getElementById('btnModeTable');
+            const cBtn = document.getElementById('btnModeChart');
+            const tCont = document.getElementById('pdfExportContainer');
+            const cCont = document.getElementById('reportChartContainer');
+
+            if (mode === 'table') {
+                tBtn.className = 'px-4 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white shadow transition';
+                cBtn.className = 'px-4 py-2 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition';
+                tCont.classList.remove('hidden');
+                cCont.classList.add('hidden');
+            } else {
+                cBtn.className = 'px-4 py-2 rounded-lg text-xs font-bold bg-emerald-600 text-white shadow transition';
+                tBtn.className = 'px-4 py-2 rounded-lg text-xs font-bold text-slate-300 hover:text-white transition';
+                cCont.classList.remove('hidden');
+                tCont.classList.add('hidden');
+                renderCharts();
+            }
+        }
+
+        function renderCharts() {
+            const asnafCounts = {};
+            appState.mustahikRecords.forEach(m => {
+                asnafCounts[m.asnaf] = (asnafCounts[m.asnaf] || 0) + 1;
+            });
+
+            const pieCtx = document.getElementById('asnafPieChart').getContext('2d');
+            if (chartsInstance.asnaf) chartsInstance.asnaf.destroy();
+            chartsInstance.asnaf = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(asnafCounts).length > 0 ? Object.keys(asnafCounts) : ['Kosong'],
+                    datasets: [{
+                        data: Object.values(asnafCounts).length > 0 ? Object.values(asnafCounts) : [1],
+                        backgroundColor: ['#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1']
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 10 } } } } }
+            });
+
+            let totalZakatUang = 0;
+            appState.zakatRecords.forEach(r => { if (r.jenis === 'Uang') totalZakatUang += Number(r.jumlah) || 0; });
+
+            let totalInfaqChart = 0;
+            let saldoKasChart = 0;
+            appState.kasRecords.forEach(k => {
+                let cleanNom = parseInt((k.nominalBarang || '').replace(/[^0-9]/g, '')) || 0;
+                if (k.pemberi.toLowerCase().includes('infaq') || k.kegunaan.toLowerCase().includes('infaq')) totalInfaqChart += cleanNom;
+                if (k.jenis === 'Masuk') saldoKasChart += cleanNom;
+                else saldoKasChart -= cleanNom;
+            });
+
+            const barCtx = document.getElementById('financeBarChart').getContext('2d');
+            if (chartsInstance.finance) chartsInstance.finance.destroy();
+            chartsInstance.finance = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Zakat Fitrah (Uang)', 'Infaq & Shodaqoh', 'Saldo Kas Masjid'],
+                    datasets: [{
+                        label: 'Jumlah (Rp)',
+                        data: [totalZakatUang, totalInfaqChart, saldoKasChart],
+                        backgroundColor: ['#10b981', '#f59e0b', '#3b82f6']
+                    }]
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } },
+                    scales: { 
+                        y: { ticks: { color: '#cbd5e1' }, grid: { color: '#334155' } },
+                        x: { ticks: { color: '#cbd5e1' }, grid: { display: false } }
+                    } 
+                }
+            });
+        }
+
+        // ================= PENGATURAN & AKUN =================
+        async function saveTarif(e) {
+            e.preventDefault();
+            appState.tarif.uang = parseFloat(document.getElementById('configTarifUang').value);
+            appState.tarif.beras = parseFloat(document.getElementById('configTarifBeras').value);
+            
+            await supabaseClient.from('tarif').upsert({ id: 1, uang: appState.tarif.uang, beras: appState.tarif.beras });
+
+            document.getElementById('lblTarifUang').textContent = formatRupiah(appState.tarif.uang);
+            document.getElementById('lblTarifBeras').textContent = appState.tarif.beras;
+            await logActivity('Pengurus', 'Mengubah konfigurasi tarif zakat fitrah');
+            alert('Tarif zakat fitrah berhasil diperbarui di Supabase!');
+            await refreshAppData();
+        }
+
+        function openUserModal() {
+            document.getElementById('userForm').reset();
+            document.getElementById('userModal').classList.remove('hidden');
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').classList.add('hidden');
+        }
+
+        async function saveUserAccount(e) {
+            e.preventDefault();
+            const nama = document.getElementById('uNamaPengguna').value.trim();
+            const jabatan = document.getElementById('uJabatan').value.trim();
+            const alamat = document.getElementById('uAlamat').value.trim();
+            const username = document.getElementById('uUsername').value.trim();
+            const password = document.getElementById('uPassword').value.trim();
+
+            if (appState.users.some(x => x.username === username)) {
+                alert('Username sudah digunakan!');
+                return;
+            }
+
+            const newUser = { nama, jabatan, alamat, username, password };
+            const { error } = await supabaseClient.from('users').insert([newUser]);
+            if (error) {
+                alert('Gagal menambah akun: ' + error.message);
+                return;
+            }
+
+            appState.users.push(newUser);
+            closeUserModal();
+            renderAllUI();
+            await logActivity('Admin', `Menambahkan akun pengaman baru: ${nama} (${jabatan})`);
+            alert('Akun berhasil ditambahkan ke Supabase!');
+            await refreshAppData();
+        }
+
+        function renderUserTable() {
+            const tbody = document.getElementById('userTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (appState.users.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400 italic">Belum ada akun.</td></tr>`;
+                return;
+            }
+            appState.users.forEach(u => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-slate-800/50 transition">
+                        <td class="p-3 border-r border-slate-700 font-bold text-white">${u.nama}</td>
+                        <td class="p-3 border-r border-slate-700 text-emerald-300">${u.jabatan}</td>
+                        <td class="p-3 border-r border-slate-700 text-slate-300">${u.alamat}</td>
+                        <td class="p-3 border-r border-slate-700 font-mono text-gold-400">${u.username}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="deleteUserAccount('${u.username}')" class="px-2 py-1 bg-red-900/30 hover:bg-red-900/60 text-red-300 rounded text-xs">Hapus</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        async function deleteUserAccount(username) {
+            if (confirm(`Hapus akun ${username}?`)) {
+                await supabaseClient.from('users').delete().eq('username', username);
+                appState.users = appState.users.filter(x => x.username !== username);
+                renderAllUI();
+                await logActivity('Admin', `Menghapus akun pengaman: ${username}`);
+                alert('Akun berhasil dihapus.');
+                await refreshAppData();
+            }
+        }
+
+        function exportDataJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", `MASJIDKU_Backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(dlAnchorElem);
+            dlAnchorElem.click();
+            dlAnchorElem.remove();
+        }
+
+        function formatRupiah(num) {
+            const val = Number(num) || 0;
+            return 'Rp ' + val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+        }
+    </script>
+</body>
+</html>
